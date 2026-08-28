@@ -1,6 +1,13 @@
 import { getToken } from './token.js';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Resolution order:
+//  1. VITE_API_URL (set this in Vercel / .env to override)
+//  2. dev  -> "/api"  (Vite proxies to http://127.0.0.1:8000)
+//  3. prod -> deployed Render backend
+const DEPLOYED_API = 'https://sih-internal-xtas.onrender.com';
+const API_BASE =
+  import.meta.env.VITE_API_URL?.replace(/\/$/, '') ||
+  (import.meta.env.DEV ? '/api' : DEPLOYED_API);
 
 function authHeaders() {
   const token = getToken();
@@ -20,7 +27,9 @@ async function parseError(res) {
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 25000;
+// Render's free tier sleeps after inactivity; the first request can take
+// 30-60s to cold-start, so allow a generous timeout.
+const DEFAULT_TIMEOUT_MS = 45000;
 
 async function withTimeout(url, init, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const ctrl = new AbortController();

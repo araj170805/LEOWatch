@@ -51,13 +51,32 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Orbital Guardian", version="1.1.0", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: explicit origins from CORS_ORIGINS + always allow localhost dev + any
+# *.vercel.app deployment (preview and production) via regex, so the frontend
+# works without extra configuration. If CORS_ORIGINS contains "*", open fully.
+_explicit_origins = settings.cors_origins
+_LOCAL_ORIGINS = [
+    "http://localhost:5173", "http://127.0.0.1:5173",
+    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:4173", "http://127.0.0.1:4173",
+]
+if "*" in _explicit_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=sorted(set(_explicit_origins) | set(_LOCAL_ORIGINS)),
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Curated seed catalog. These NORAD ids resolve against live CelesTrak data;
 # the static entries in app/orbital/tle.py are only a last-resort cache so the
