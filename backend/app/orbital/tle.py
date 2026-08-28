@@ -14,8 +14,23 @@ CELESTRAK_URLS = (
     "https://celestrak.com/NORAD/elements/gp.php",
 )
 CELESTRAK_URL = CELESTRAK_URLS[0]  # kept for backwards compatibility
-DEFAULT_HTTP_TIMEOUT = 8
+DEFAULT_HTTP_TIMEOUT = 6
 CACHE_TTL_SECONDS = 3600
+
+# Circuit breaker: once CelesTrak fails, stop hammering it for a while so that
+# /screening, /forecast and /catalog stay fast (they fall straight through to
+# cached / bundled elements instead of timing out per object).
+_CIRCUIT_COOLDOWN_SECONDS = 90.0
+_circuit_open_until = 0.0
+
+
+def celestrak_reachable() -> bool:
+    return time.monotonic() >= _circuit_open_until
+
+
+def _trip_circuit() -> None:
+    global _circuit_open_until
+    _circuit_open_until = time.monotonic() + _CIRCUIT_COOLDOWN_SECONDS
 CACHE_PATH = Path(__file__).resolve().parents[2] / "data" / "tle_cache.json"
 
 _MEM_CACHE: dict[int, tuple[float, dict]] = {}
@@ -148,27 +163,32 @@ def fetch_tle(norad_id: int, timeout: int = DEFAULT_HTTP_TIMEOUT) -> dict:
 
     tle = None
     source = None
-    for base_url in CELESTRAK_URLS:
-        try:
-            resp = requests.get(
-                base_url,
-                params={"CATNR": norad_id, "FORMAT": "TLE"},
-                timeout=timeout,
-                verify=False,  # Bypass local SSL interception causing SSLEOFError
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
-            )
-            lines = [ln.rstrip() for ln in resp.text.splitlines() if ln.strip()]
-            if resp.status_code == 200 and len(lines) >= 3 and lines[1].startswith("1 ") and lines[2].startswith("2 "):
-                tle = {
-                    "norad_id": norad_id,
-                    "name": lines[0].strip(),
-                    "line1": lines[1],
-                    "line2": lines[2],
-                }
-                source = "live"
-                break
-        except requests.RequestException:
-            continue
+    if celestrak_reachable():
+        any_error = False
+        for base_url in CELESTRAK_URLS:
+            try:
+                resp = requests.get(
+                    base_url,
+                    params={"CATNR": norad_id, "FORMAT": "TLE"},
+                    timeout=timeout,
+                    verify=False,  # Bypass local SSL interception causing SSLEOFError
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+                )
+                lines = [ln.rstrip() for ln in resp.text.splitlines() if ln.strip()]
+                if resp.status_code == 200 and len(lines) >= 3 and lines[1].startswith("1 ") and lines[2].startswith("2 "):
+                    tle = {
+                        "norad_id": norad_id,
+                        "name": lines[0].strip(),
+                        "line1": lines[1],
+                        "line2": lines[2],
+                    }
+                    source = "live"
+                    break
+            except requests.RequestException:
+                any_error = True
+                continue
+        if tle is None and any_error:
+            _trip_circuit()  # CelesTrak unreachable — stop retrying for a bit
 
     if tle is None:
         disk = _load_disk_cache().get(norad_id)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CesiumViewer from '../components/viewer/CesiumViewer.jsx';
 import { useMission } from '../context/MissionContext.jsx';
@@ -15,8 +15,8 @@ const DEFAULT_CATALOG = [
 ];
 
 const HORIZON_OPTIONS = [
-  { hours: 24, stepMinutes: 1, label: '24H' },
-  { hours: 12, stepMinutes: 1, label: '12H' },
+  { hours: 24, stepMinutes: 5, label: '24H' },
+  { hours: 12, stepMinutes: 3, label: '12H' },
   { hours: 6, stepMinutes: 1, label: '6H' },
 ];
 
@@ -53,12 +53,23 @@ export default function OrbitView() {
   const [customName, setCustomName] = useState('');
   const [customError, setCustomError] = useState('');
 
-  const isOffline = error instanceof TypeError;
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => a.minimum_distance_km - b.minimum_distance_km),
     [events]
   );
   const objectsForViewer = forecast?.objects || [];
+
+  // Auto-run one screening on first mount so the globe is populated on arrival
+  // (guests should see orbits without hunting for a button).
+  const didAutoRun = useRef(false);
+  useEffect(() => {
+    if (didAutoRun.current) return;
+    didAutoRun.current = true;
+    if (objectsForViewer.length === 0 && !loading) {
+      runScreening([25544, 43013], 24, 5);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggle(id) {
     setSelectedIds((ids) =>
@@ -105,7 +116,7 @@ export default function OrbitView() {
       <div className="absolute inset-0 z-0">
         <CesiumViewer objects={objectsForViewer} selectedEvent={selectedEvent} />
 
-        {objectsForViewer.length === 0 && (
+        {objectsForViewer.length === 0 && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#050816]/40 backdrop-blur-[2px] pointer-events-none z-10">
             <div className="h-14 w-14 rounded-2xl bg-[#0b1026]/90 border border-[rgba(0,240,255,0.2)] flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,240,255,0.2)]">
               🌍
@@ -120,6 +131,19 @@ export default function OrbitView() {
         {loading && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 font-mono text-xs text-[#00f0ff] border border-[rgba(0,240,255,0.4)] bg-[#050816]/90 backdrop-blur-md px-4 py-2 rounded-xl animate-pulse z-20 shadow-lg">
             ⚡ PROPAGATING ORBITAL TRAJECTORIES…
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-md text-center font-mono text-xs text-red-300 border border-red-500/40 bg-[#050816]/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg">
+            <p className="font-bold text-red-400 mb-1">SCREENING FAILED</p>
+            <p className="text-slate-300">{String(error?.message || error)}</p>
+            <button
+              onClick={handleRun}
+              className="mt-2 border border-[rgba(0,240,255,0.4)] text-[#00f0ff] rounded-lg px-3 py-1 hover:bg-[rgba(0,240,255,0.1)] transition-colors"
+            >
+              Retry
+            </button>
           </div>
         )}
       </div>

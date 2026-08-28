@@ -22,9 +22,30 @@ from app.database import init_db
 from app.routers import auth, chat, forecast, history
 
 
+def _prewarm_tle_cache() -> None:
+    """Warm the TLE cache for the seed catalog in the background so the first
+    /catalog or /screening request isn't slow (and the circuit breaker trips
+    quickly if CelesTrak is unreachable)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.orbital import tle as tle_mod
+
+    def _one(nid: int) -> None:
+        try:
+            tle_mod.fetch_tle(nid, timeout=6)
+        except Exception:  # noqa: BLE001
+            pass
+
+    with ThreadPoolExecutor(max_workers=len(CATALOG)) as pool:
+        list(pool.map(_one, [c["norad_id"] for c in CATALOG]))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    import threading
+
+    threading.Thread(target=_prewarm_tle_cache, daemon=True).start()
     yield
 
 
