@@ -1,0 +1,45 @@
+# Render deployment for the Orbital Guardian API (FastAPI).
+# Repo root = this folder. If you deploy the `backend/` folder as its own
+# repo instead, delete the `rootDir` line below.
+services:
+  - type: web
+    name: orbital-guardian-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # Comma-separated list of allowed frontend origins (your Vercel URL).
+      - key: CORS_ORIGINS
+        sync: false
+      # Leave DATABASE_URL UNSET to use bundled SQLite (data is wiped on
+      # redeploy). Set it to a Render PostgreSQL URL for persistent accounts.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      # AI explanation layer (optional — app works without it).
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: EMBEDDING_MODEL
+        value: text-embedding-004
+      # CelesTrak
+      - key: CELESTRAK_BASE_URL
+        value: https://celestrak.org/NORAD/elements/gp.php
+      - key: CELESTRAK_CACHE_TTL
+        value: "3600"
+      # Optional OpenAI-compatible fallback LLM (e.g. Groq)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: llama-3.3-70b-versatile

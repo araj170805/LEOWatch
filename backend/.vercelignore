@@ -1,0 +1,4 @@
+*.log
+*.db
+.vercel
+.env

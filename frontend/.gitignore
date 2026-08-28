@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.vercel/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
