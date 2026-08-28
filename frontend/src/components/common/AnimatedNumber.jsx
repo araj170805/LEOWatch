@@ -12,6 +12,9 @@ export default function AnimatedNumber({ value, duration = 1.1 }) {
 
   useEffect(() => {
     if (!isNumeric) return;
+    // If the previous value was a non-numeric placeholder (e.g. "…"), the
+    // motion value is NaN — reset it so we animate from a real number.
+    if (!Number.isFinite(count.get())) count.set(0);
     if (shouldReduceMotion) {
       count.set(value);
       return;

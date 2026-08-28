@@ -17,12 +17,20 @@ export default function Signup() {
     setFormError(null);
     clearError();
 
+    if (!form.name.trim()) {
+      setFormError('Please enter your name.');
+      return;
+    }
+    if (form.password.length < 8) {
+      setFormError('Password must be at least 8 characters.');
+      return;
+    }
     if (form.password !== form.confirm) {
       setFormError('Passwords do not match.');
       return;
     }
 
-    const ok = await signup(form);
+    const ok = await signup({ ...form, name: form.name.trim(), email: form.email.trim() });
     if (ok) navigate('/dashboard');
   }
 
@@ -74,10 +82,14 @@ export default function Signup() {
               <input
                 type="password"
                 required
+                minLength={8}
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 className="mt-1 w-full bg-raised border border-line rounded-lg text-sm px-3 py-2 focus:outline-none focus:border-track transition-colors"
               />
+              <span className={`text-[10px] font-mono mt-1 block ${form.password && form.password.length < 8 ? 'text-risk-high' : 'text-faint'}`}>
+                At least 8 characters
+              </span>
             </label>
 
             <label className="block">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '../components/common/PageHeader.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
-import { apiGet } from '../lib/api.js';
+import { SEED_IDS } from '../lib/seed.js';
 import { useMission } from '../context/MissionContext.jsx';
 import { formatDateTime, countdownFrom } from '../utils/formatTime.js';
 import { container, item } from '../utils/motion.js';
@@ -19,12 +19,9 @@ export default function Alerts() {
 
   useEffect(() => {
     if (events.length > 0) return;
-    apiGet('/catalog')
-      .then((data) => {
-        const ids = (data.objects || []).map((o) => o.norad_id).slice(0, 6);
-        if (ids.length >= 2) runScreening(ids, 24, 5);
-      })
-      .catch((err) => setLocalError(err.message || 'Failed to load catalog'));
+    runScreening(SEED_IDS.slice(0, 6), 24, 5).catch((err) =>
+      setLocalError(err.message || 'Screening failed')
+    );
     // eslint-disable-next-line
   }, []);
 

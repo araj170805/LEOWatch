@@ -6,6 +6,7 @@ import StatCard from '../components/common/StatCard.jsx';
 import Card from '../components/common/Card.jsx';
 import OrbitGraphic from '../components/common/OrbitGraphic.jsx';
 import { apiGet } from '../lib/api.js';
+import { SEED_IDS } from '../lib/seed.js';
 import { formatDateTime, countdownFrom } from '../utils/formatTime.js';
 import { useMission } from '../context/MissionContext.jsx';
 
@@ -20,18 +21,17 @@ const RISK_TEXT = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { events, runScreening, loading } = useMission();
-  const [catalog, setCatalog] = useState({ objects: [], loading: true, error: null });
+  const [cat, setCat] = useState({ loading: true, error: null, total: 0, counts: {} });
 
   useEffect(() => {
     let alive = true;
-    apiGet('/catalog')
+    apiGet('/catalog?page_size=1')
       .then((data) => {
         if (!alive) return;
-        setCatalog({ objects: data.objects || [], loading: false, error: null });
-        const ids = (data.objects || []).map((o) => o.norad_id).slice(0, 6);
-        if (ids.length >= 2 && events.length === 0) runScreening(ids, 24, 5);
+        setCat({ loading: false, error: null, total: data.total_unfiltered ?? data.total ?? 0, counts: data.counts || {} });
       })
-      .catch((err) => alive && setCatalog({ objects: [], loading: false, error: err.message }));
+      .catch((err) => alive && setCat({ loading: false, error: err.message, total: 0, counts: {} }));
+    if (events.length === 0) runScreening(SEED_IDS.slice(0, 6), 24, 5);
     return () => { alive = false; };
     // eslint-disable-next-line
   }, []);
@@ -46,13 +46,8 @@ export default function Dashboard() {
     [events]
   );
 
-  const tracked = catalog.objects.length;
-  const debris = catalog.objects.filter((o) => o.type === 'DEBRIS').length;
-  const rockets = catalog.objects.filter((o) => o.type === 'ROCKET BODY').length;
-  const freshest = catalog.objects
-    .map((o) => o.tle_age_days)
-    .filter((x) => x != null)
-    .sort((a, b) => a - b)[0];
+  const debris = cat.counts.DEBRIS ?? 0;
+  const rockets = cat.counts['ROCKET BODY'] ?? 0;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show">
@@ -76,16 +71,20 @@ export default function Dashboard() {
 
       <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <motion.div variants={item}>
-          <StatCard label="TRACKED OBJECTS" value={catalog.loading ? '…' : tracked} footnote={`${debris} debris · ${rockets} R/B`} />
+          <StatCard
+            label="TRACKED OBJECTS"
+            value={cat.loading ? 0 : cat.total}
+            footnote={cat.loading ? 'loading catalog…' : `${debris.toLocaleString()} debris · ${rockets.toLocaleString()} R/B`}
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard label="ACTIVE CONJUNCTIONS" value={loading ? '…' : events.length} footnote="24h screening window" />
+          <StatCard label="ACTIVE CONJUNCTIONS" value={loading ? 0 : events.length} footnote="seed-set screening · 24h" />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard label="HIGH-PRIORITY EVENTS" value={loading ? '…' : highRisk.length} accent={highRisk.length ? 'text-risk-high' : 'text-primary'} footnote="HIGH / CRITICAL tier" />
+          <StatCard label="HIGH-PRIORITY EVENTS" value={loading ? 0 : highRisk.length} accent={highRisk.length ? 'text-risk-high' : 'text-[#00f0ff]'} footnote="HIGH / CRITICAL tier" />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard label="DATA AGE (FRESHEST)" value={freshest != null ? `${freshest.toFixed(1)} d` : '—'} accent="text-track" footnote="TLE epoch age" />
+          <StatCard label="DEBRIS TRACKED" value={cat.loading ? 0 : debris} accent="text-[#00f0ff]" footnote="fragmentation + inactive" />
         </motion.div>
       </motion.div>
 

@@ -6,7 +6,7 @@ import Card from '../components/common/Card.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import ConjunctionTable from '../components/tables/ConjunctionTable.jsx';
 import RiskFactorCard from '../components/common/RiskFactorCard.jsx';
-import { apiGet } from '../lib/api.js';
+import { SEED_IDS } from '../lib/seed.js';
 import { useMission } from '../context/MissionContext.jsx';
 import { container, item } from '../utils/motion.js';
 
@@ -22,13 +22,10 @@ export default function Conjunctions() {
   async function screen(h) {
     setCatalogError(null);
     try {
-      const data = await apiGet('/catalog');
-      const ids = (data.objects || []).map((o) => o.norad_id).slice(0, 6);
-      if (ids.length < 2) { setCatalogError('Not enough catalog objects to screen.'); return; }
-      await runScreening(ids, h, h <= 6 ? 1 : 5);
+      await runScreening(SEED_IDS.slice(0, 6), h, h <= 6 ? 1 : 5);
       setRan(true);
     } catch (err) {
-      setCatalogError(err.message || 'Failed to load catalog.');
+      setCatalogError(err.message || 'Screening failed.');
     }
   }
 

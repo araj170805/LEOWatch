@@ -166,54 +166,171 @@ def objects() -> list[dict]:
     return CATALOG
 
 
-@app.get("/catalog")
-def catalog(fast: bool = False) -> dict:
-    """Seed catalog with the LATEST AVAILABLE orbital data per object.
+# Default CelesTrak GROUPs pulled for the full tracking catalog: space stations,
+# recent launches, GEO belt, and the four largest tracked debris clouds.
+DEFAULT_GROUPS = [
+    "stations",
+    "last-30-days",
+    "active-geosynchronous",
+    "cosmos-2251-debris",
+    "iridium-33-debris",
+    "cosmos-1408-debris",
+    "fengyun-1c-debris",
+]
 
-    Pulls live CelesTrak elements for all objects in parallel (results are
-    memory-cached for 1 h by the TLE layer, so only the first call is slow).
-    Each object independently falls back to disk cache, then bundled elements,
-    so the list always renders even if CelesTrak is unreachable.
-    Pass ?fast=true to skip the network and read caches only.
+# ISO year cutoffs for "TLE age" freshness on the bulk list.
+_DEB_GROUP = "-debris"
+
+
+def _classify_gp(name: str, group: str) -> str:
+    up = (name or "").upper()
+    if group.endswith(_DEB_GROUP) or "DEB" in up:
+        return "DEBRIS"
+    if "R/B" in up or "ROCKET" in up:
+        return "ROCKET BODY"
+    if up.strip():
+        return "PAYLOAD"
+    return "UNKNOWN"
+
+
+def _gp_row(rec: dict, group: str) -> dict | None:
+    try:
+        nid = int(rec["NORAD_CAT_ID"])
+        mm = float(rec["MEAN_MOTION"])
+        ecc = float(rec.get("ECCENTRICITY", 0.0))
+        inc = float(rec.get("INCLINATION", 0.0))
+        epoch = str(rec.get("EPOCH", "")) or None
+    except (KeyError, ValueError, TypeError):
+        return None
+    name = str(rec.get("OBJECT_NAME", f"OBJECT {nid}")).strip()
+
+    n_rad_s = mm * 2.0 * math.pi / 86400.0
+    sma = (_MU / (n_rad_s * n_rad_s)) ** (1.0 / 3.0) if n_rad_s else None
+    age = None
+    if epoch:
+        try:
+            e = datetime.fromisoformat(epoch.replace("Z", "+00:00"))
+            if e.tzinfo is None:
+                e = e.replace(tzinfo=timezone.utc)
+            age = round((datetime.now(timezone.utc) - e).total_seconds() / 86400.0, 2)
+        except ValueError:
+            age = None
+    from app.orbital.tle import freshness_label
+
+    return {
+        "norad_id": nid,
+        "name": name,
+        "type": _classify_gp(name, group),
+        "group": group,
+        "altitude_km": round(sma - _EARTH_RADIUS_KM, 1) if sma else None,
+        "apogee_km": round(sma * (1 + ecc) - _EARTH_RADIUS_KM, 1) if sma else None,
+        "perigee_km": round(sma * (1 - ecc) - _EARTH_RADIUS_KM, 1) if sma else None,
+        "inclination_deg": round(inc, 2),
+        "eccentricity": round(ecc, 5),
+        "period_min": round(1440.0 / mm, 1) if mm else None,
+        "tle_epoch": epoch,
+        "tle_age_days": age,
+        "freshness": freshness_label(age),
+        "intl_designator": rec.get("OBJECT_ID"),
+    }
+
+
+@app.get("/catalog")
+def catalog(
+    groups: str | None = None,
+    q: str | None = None,
+    type: str | None = None,  # noqa: A002 - matches query param name
+    sort: str = "norad_id",
+    order: str = "asc",
+    page: int = 1,
+    page_size: int = 100,
+) -> dict:
+    """Full tracking catalog from CelesTrak GROUP data (many objects at once).
+
+    Each GROUP is fetched once as GP-JSON and cached ~6 h (memory + disk), so
+    only the first call is slow. Filtering / sorting / pagination happen here so
+    the client only transfers one page. Degrades to disk cache if CelesTrak is
+    unreachable.
     """
     from concurrent.futures import ThreadPoolExecutor
 
     from app.orbital import tle as tle_mod
 
+    group_list = [g.strip().lower() for g in (groups.split(",") if groups else DEFAULT_GROUPS) if g.strip()]
+    group_list = group_list[:12]
+
+    with ThreadPoolExecutor(max_workers=max(1, len(group_list))) as pool:
+        fetched = list(pool.map(tle_mod.fetch_group, group_list))
+
+    by_id: dict[int, dict] = {}
+    for group, records in zip(group_list, fetched):
+        for rec in records:
+            row = _gp_row(rec, group)
+            if row and row["norad_id"] not in by_id:
+                by_id[row["norad_id"]] = row
+    rows = list(by_id.values())
+
+    counts = {"PAYLOAD": 0, "DEBRIS": 0, "ROCKET BODY": 0, "UNKNOWN": 0}
+    for r in rows:
+        counts[r["type"]] = counts.get(r["type"], 0) + 1
+    total_all = len(rows)
+
+    if type and type.upper() != "ALL":
+        rows = [r for r in rows if r["type"] == type.upper()]
+    if q:
+        ql = q.strip().lower()
+        rows = [r for r in rows if ql in r["name"].lower() or ql in str(r["norad_id"])]
+
+    key = sort if sort in {"norad_id", "name", "altitude_km", "inclination_deg", "tle_age_days", "period_min"} else "norad_id"
+    rows.sort(
+        key=lambda r: (r.get(key) is None, r.get(key) if r.get(key) is not None else 0),
+        reverse=(order == "desc"),
+    )
+
+    total = len(rows)
+    page = max(1, page)
+    page_size = max(1, min(page_size, 500))
+    start = (page - 1) * page_size
+    page_rows = rows[start : start + page_size]
+
+    return {
+        "objects": page_rows,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_unfiltered": total_all,
+        "counts": counts,
+        "groups": group_list,
+        "celestrak_reachable": tle_mod.celestrak_reachable(),
+        "data_label": "Live catalog data (CelesTrak GP)",
+    }
+
+
+@app.get("/catalog/featured")
+def catalog_featured(fast: bool = True) -> dict:
+    """The small curated set used for default screening / the 3D selector."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.orbital import tle as tle_mod
+
     def resolve(entry: dict) -> dict:
-        row = {
-            **entry,
-            "type": classify_object(entry["name"]),
-            "tle_epoch": None,
-            "tle_age_days": None,
-            "freshness": "UNKNOWN",
-            "source": None,
-        }
+        row = {**entry, "type": classify_object(entry["name"]), "freshness": "UNKNOWN", "source": None}
         try:
             tle = tle_mod.peek_tle(entry["norad_id"]) if fast else tle_mod.fetch_tle(entry["norad_id"], timeout=5)
         except ValueError:
             tle = None
         if tle:
-            row.update(
-                {
-                    "tle_epoch": tle.get("epoch"),
-                    "tle_age_days": tle.get("age_days"),
-                    "freshness": tle.get("freshness"),
-                    "source": tle.get("source"),
-                }
-            )
+            row.update({
+                "tle_epoch": tle.get("epoch"),
+                "tle_age_days": tle.get("age_days"),
+                "freshness": tle.get("freshness"),
+                "source": tle.get("source"),
+            })
         return row
 
     with ThreadPoolExecutor(max_workers=len(CATALOG)) as pool:
         items = list(pool.map(resolve, CATALOG))
-
-    live = sum(1 for it in items if it["source"] == "live")
-    return {
-        "objects": items,
-        "count": len(items),
-        "live_count": live,
-        "data_label": "Latest available orbital data (CelesTrak)",
-    }
+    return {"objects": items, "count": len(items)}
 
 
 @app.get("/object/{norad_id}")

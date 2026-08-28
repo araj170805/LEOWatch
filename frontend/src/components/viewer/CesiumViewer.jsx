@@ -23,7 +23,7 @@ function riskColor(risk) {
   return RISK_COLORS[risk] || Cesium.Color.WHITE;
 }
 
-export default function CesiumViewer({ objects = [], selectedEvent }) {
+export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const entitiesRef = useRef([]);
@@ -185,8 +185,14 @@ export default function CesiumViewer({ objects = [], selectedEvent }) {
       viewer.clock.shouldAnimate = true;
       viewer.timeline?.zoomTo(minTime, maxTime);
       viewer.scene.requestRender?.();
+      // Wide shot: whole Earth + full orbit tracks comfortably in frame.
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(0, 20, 20000000),
+        destination: Cesium.Cartesian3.fromDegrees(0, 0, 44000000),
+        orientation: {
+          heading: 0,
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0,
+        },
         duration: 1.5,
       });
     }
@@ -236,11 +242,14 @@ export default function CesiumViewer({ objects = [], selectedEvent }) {
       );
     }
 
-    if (pa && pb) {
+    // Only fly to the encounter on an explicit user action (focusKey bump),
+    // never on the auto-selected closest event — that yanked the camera into
+    // a zoomed-in tilt and hid most of the globe.
+    if (pa && pb && focusKey > 0) {
       const bs = Cesium.BoundingSphere.fromPoints([pa, pb]);
       viewer.camera.flyToBoundingSphere(bs, {
         duration: 1.5,
-        offset: new Cesium.HeadingPitchRange(0, -0.7, 12000000),
+        offset: new Cesium.HeadingPitchRange(0, -0.5, 9000000),
       });
     }
 

@@ -14,17 +14,32 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function parseError(res) {
-  try {
-    const body = await res.json();
-    if (body && body.detail) {
-      throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
-    }
-    throw new Error(`Request failed (${res.status})`);
-  } catch (err) {
-    if (err instanceof SyntaxError) throw new Error(`Request failed (${res.status})`);
-    throw err;
+const FIELD_LABELS = { password: 'Password', email: 'Email', name: 'Name', question: 'Question' };
+
+// Turn a FastAPI error body into one readable sentence.
+function humanizeDetail(detail, status) {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail.map((e) => {
+      const field = Array.isArray(e?.loc) ? e.loc[e.loc.length - 1] : null;
+      const label = field ? FIELD_LABELS[field] || field : null;
+      let msg = (e?.msg || 'is invalid').replace(/^String should/, 'must');
+      msg = msg.replace(/^Value error, /i, '');
+      return label ? `${label} ${msg}` : msg;
+    });
+    if (parts.length) return parts.join('. ');
   }
+  return `Request failed (${status})`;
+}
+
+async function parseError(res) {
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error(`Request failed (${res.status})`);
+  }
+  throw new Error(humanizeDetail(body?.detail ?? body, res.status));
 }
 
 // Render's free tier sleeps after inactivity; the first request can take
