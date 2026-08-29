@@ -15,10 +15,10 @@ html {
 body {
   @apply bg-void text-primary antialiased selection:bg-track selection:text-void;
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  background-color: #050816;
+  background-color: #05070f;
   background-image:
-    radial-gradient(ellipse at 30% -10%, rgba(0, 240, 255, 0.08), transparent 60%),
-    radial-gradient(ellipse at 80% 90%, rgba(162, 0, 255, 0.06), transparent 60%);
+    radial-gradient(1200px 520px at 78% -8%, rgba(56, 225, 255, 0.05), transparent 70%),
+    radial-gradient(900px 520px at 0% 100%, rgba(91, 157, 255, 0.04), transparent 70%);
   background-attachment: fixed;
   line-height: 1.5;
 }
@@ -33,23 +33,30 @@ p {
 
 /* Standardized eyebrow / label style used across headers, cards, and nav */
 .eyebrow {
-  @apply font-mono uppercase tracking-[0.18em] text-track;
+  @apply font-mono uppercase tracking-[0.18em];
+  color: #8b97ab;
+  font-size: 0.625rem;
 }
 
-/* Glass panel utility */
+/* Subtle surface tile — replaces heavy bordered cards */
+.surface {
+  background: rgba(148, 163, 184, 0.045);
+  border-radius: 0.75rem;
+}
+
+/* Glass panel utility (floating panels on the orbital screen) */
 .glass-panel {
-  background: rgba(11, 16, 38, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 240, 255, 0.15);
+  background: rgba(11, 17, 28, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .glass-panel-hover {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-panel-hover:hover {
-  border-color: rgba(0, 240, 255, 0.4);
-  box-shadow: 0 10px 30px -10px rgba(0, 240, 255, 0.2);
+  border-color: rgba(56, 225, 255, 0.3);
   transform: translateY(-2px);
 }
 
@@ -62,11 +69,11 @@ p {
   background: #050816;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.2);
+  background: rgba(148, 163, 184, 0.2);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.4);
+  background: rgba(148, 163, 184, 0.35);
 }
 
 .mono-nums {

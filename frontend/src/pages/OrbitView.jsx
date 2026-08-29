@@ -110,8 +110,8 @@ export default function OrbitView() {
 
         {objectsForViewer.length === 0 && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#050816]/40 backdrop-blur-[2px] pointer-events-none z-10">
-            <div className="h-14 w-14 rounded-2xl bg-[#0b1026]/90 border border-[rgba(0,240,255,0.2)] flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,240,255,0.2)]">🌍</div>
-            <p className="font-mono text-xs text-white text-center px-6 max-w-sm bg-[#050816]/80 p-3 rounded-xl border border-[rgba(0,240,255,0.15)]">
+            <div className="h-14 w-14 rounded-2xl bg-[rgba(11,17,28,0.85)] border border-[rgba(148,163,184,0.12)] flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,240,255,0.2)]">🌍</div>
+            <p className="font-mono text-xs text-white text-center px-6 max-w-sm bg-[#050816]/80 p-3 rounded-xl border border-[rgba(148,163,184,0.1)]">
               Select at least two objects and click <span className="text-[#00f0ff] font-bold">RUN SCREENING</span>.
             </p>
           </div>
@@ -135,17 +135,17 @@ export default function OrbitView() {
       {/* ── Left: Object selection ── */}
       <div className="absolute top-4 left-4 z-20">
         {!isLeftOpen ? (
-          <button onClick={() => setIsLeftOpen(true)} className="flex items-center gap-2 font-mono text-xs text-[#00f0ff] bg-[#0b1026]/90 border border-[rgba(0,240,255,0.3)] backdrop-blur-xl px-3.5 py-2 rounded-xl shadow-xl hover:bg-[rgba(0,240,255,0.15)] transition-all">
+          <button onClick={() => setIsLeftOpen(true)} className="flex items-center gap-2 font-mono text-xs text-[#00f0ff] bg-[rgba(11,17,28,0.85)] border border-[rgba(148,163,184,0.16)] backdrop-blur-xl px-3.5 py-2 rounded-xl shadow-xl hover:bg-[rgba(0,240,255,0.15)] transition-all">
             <span>🛰️ Objects ({selectedIds.length})</span><span>›</span>
           </button>
         ) : (
-          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
-            <div className="flex items-center justify-between border-b border-[rgba(0,240,255,0.15)] pb-2">
+          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(148,163,184,0.14)] bg-[rgba(11,17,28,0.85)] backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[rgba(148,163,184,0.1)] pb-2">
               <div>
                 <p className="font-mono text-[10px] text-[#00f0ff] tracking-[0.2em] uppercase font-bold">ORBITAL SELECTION</p>
                 <h2 className="text-xs font-bold text-white">Satellites &amp; Debris ({selectedIds.length})</h2>
               </div>
-              <button onClick={() => setIsLeftOpen(false)} className="h-6 w-6 rounded-lg border border-[rgba(0,240,255,0.2)] text-[#00f0ff] hover:bg-[rgba(0,240,255,0.1)] flex items-center justify-center text-xs">‹</button>
+              <button onClick={() => setIsLeftOpen(false)} className="h-6 w-6 rounded-lg border border-[rgba(148,163,184,0.12)] text-[#00f0ff] hover:bg-[rgba(0,240,255,0.1)] flex items-center justify-center text-xs">‹</button>
             </div>
 
             {/* Add by name or NORAD id */}
@@ -154,10 +154,10 @@ export default function OrbitView() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Add by name or NORAD ID…"
-                className="w-full bg-[#050816] border border-[rgba(0,240,255,0.25)] rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#00f0ff]"
+                className="w-full bg-[#050816] border border-[rgba(148,163,184,0.14)] rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#00f0ff]"
               />
               {(searching || searchError || results.length > 0) && (
-                <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-[rgba(0,240,255,0.15)] bg-[#050816]/90 divide-y divide-white/5">
+                <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-[rgba(148,163,184,0.1)] bg-[#050816]/90 divide-y divide-white/5">
                   {searching && <p className="px-2.5 py-1.5 text-[11px] font-mono text-slate-400 animate-pulse">Searching…</p>}
                   {!searching && searchError && <p className="px-2.5 py-1.5 text-[11px] font-mono text-red-400">{searchError}</p>}
                   {results.map((r) => {
@@ -190,7 +190,7 @@ export default function OrbitView() {
                         'flex-1 flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg border transition-all text-xs',
                         active
                           ? 'border-[rgba(0,240,255,0.5)] bg-[rgba(0,240,255,0.12)] text-white font-semibold'
-                          : 'border-[rgba(255,255,255,0.08)] bg-[#050816]/60 text-slate-300 hover:text-white hover:border-[rgba(0,240,255,0.3)]',
+                          : 'border-[rgba(255,255,255,0.08)] bg-[#050816]/60 text-slate-300 hover:text-white hover:border-[rgba(148,163,184,0.16)]',
                       ].join(' ')}
                     >
                       <span className="truncate max-w-[150px]">{obj.name}</span>
@@ -210,7 +210,7 @@ export default function OrbitView() {
             {/* Window */}
             <div className="space-y-1">
               <p className="font-mono text-[10px] text-slate-400 uppercase tracking-wider">Window</p>
-              <div className="flex rounded-lg border border-[rgba(0,240,255,0.2)] overflow-hidden">
+              <div className="flex rounded-lg border border-[rgba(148,163,184,0.12)] overflow-hidden">
                 {HORIZON_OPTIONS.map((h) => (
                   <button
                     key={h.hours}
@@ -240,17 +240,17 @@ export default function OrbitView() {
       {/* ── Right: Conjunction alerts (compact) ── */}
       <div className="absolute top-4 right-4 z-20">
         {!isRightOpen ? (
-          <button onClick={() => setIsRightOpen(true)} className="flex items-center gap-2 font-mono text-xs text-[#00f0ff] bg-[#0b1026]/90 border border-[rgba(0,240,255,0.3)] backdrop-blur-xl px-3.5 py-2 rounded-xl shadow-xl hover:bg-[rgba(0,240,255,0.15)] transition-all">
+          <button onClick={() => setIsRightOpen(true)} className="flex items-center gap-2 font-mono text-xs text-[#00f0ff] bg-[rgba(11,17,28,0.85)] border border-[rgba(148,163,184,0.16)] backdrop-blur-xl px-3.5 py-2 rounded-xl shadow-xl hover:bg-[rgba(0,240,255,0.15)] transition-all">
             <span>‹ ⚠️ Alerts ({sortedEvents.length})</span>
           </button>
         ) : (
-          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
-            <div className="flex items-center justify-between border-b border-[rgba(0,240,255,0.15)] pb-2">
+          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(148,163,184,0.14)] bg-[rgba(11,17,28,0.85)] backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[rgba(148,163,184,0.1)] pb-2">
               <div>
                 <p className="font-mono text-[10px] text-[#00f0ff] tracking-[0.2em] uppercase font-bold">CONJUNCTION ALERTS</p>
                 <h2 className="text-xs font-bold text-white">Close Encounters ({sortedEvents.length})</h2>
               </div>
-              <button onClick={() => setIsRightOpen(false)} className="h-6 w-6 rounded-lg border border-[rgba(0,240,255,0.2)] text-[#00f0ff] hover:bg-[rgba(0,240,255,0.1)] flex items-center justify-center text-xs">›</button>
+              <button onClick={() => setIsRightOpen(false)} className="h-6 w-6 rounded-lg border border-[rgba(148,163,184,0.12)] text-[#00f0ff] hover:bg-[rgba(0,240,255,0.1)] flex items-center justify-center text-xs">›</button>
             </div>
 
             <div className="space-y-1 max-h-[220px] overflow-y-auto pr-1">
@@ -265,7 +265,7 @@ export default function OrbitView() {
                     onClick={() => selectEvent(ev)}
                     className={[
                       'w-full text-left px-2 py-1.5 rounded-lg border transition-all text-xs',
-                      active ? 'border-[#00f0ff] bg-[rgba(0,240,255,0.12)] text-white' : 'border-[rgba(255,255,255,0.08)] bg-[#050816]/60 text-slate-300 hover:border-[rgba(0,240,255,0.3)]',
+                      active ? 'border-[#00f0ff] bg-[rgba(0,240,255,0.12)] text-white' : 'border-[rgba(255,255,255,0.08)] bg-[#050816]/60 text-slate-300 hover:border-[rgba(148,163,184,0.16)]',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -282,7 +282,7 @@ export default function OrbitView() {
             </div>
 
             {selectedEvent && (
-              <div className={`rounded-xl border p-2.5 ${RISK_STYLES[selectedEvent.risk] || 'border-[rgba(0,240,255,0.2)]'}`}>
+              <div className={`rounded-xl border p-2.5 ${RISK_STYLES[selectedEvent.risk] || 'border-[rgba(148,163,184,0.12)]'}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] tracking-[0.15em] uppercase font-bold">⚠ CONJUNCTION ALERT</span>
                   <span className="font-mono text-[10px] font-bold">

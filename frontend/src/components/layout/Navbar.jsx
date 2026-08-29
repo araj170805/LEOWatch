@@ -66,10 +66,10 @@ export default function Navbar() {
               to={it.to}
               className={({ isActive }) =>
                 [
-                  'px-3 py-1.5 rounded-full text-sm font-medium tracking-wide transition-colors whitespace-nowrap',
+                  'px-3 py-1.5 rounded-lg text-[13px] font-medium tracking-wide transition-colors whitespace-nowrap',
                   isActive
-                    ? 'bg-[#00f0ff] text-[#050816]'
-                    : 'text-slate-300 hover:text-white hover:bg-[rgba(0,240,255,0.08)]',
+                    ? 'bg-[rgba(0,240,255,0.11)] text-track font-semibold'
+                    : 'text-dim hover:text-primary hover:bg-white/5',
                 ].join(' ')
               }
             >

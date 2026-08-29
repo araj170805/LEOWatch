@@ -7,18 +7,27 @@ export default {
         void: '#050816',
         panel: '#0b1026',
         raised: '#101738',
-        line: 'rgba(0, 240, 255, 0.15)',
-        'line-bright': 'rgba(0, 240, 255, 0.35)',
-        primary: '#FFFFFF',
-        dim: '#94A3B8',
-        faint: '#64748B',
+        // Neutral slate hairline — replaces the cyan-tinted border so the UI
+        // reads calmer and accent colour stays meaningful.
+        line: 'rgba(148, 163, 184, 0.12)',
+        'line-bright': 'rgba(56, 225, 255, 0.30)',
+        primary: '#E8EDF6',
+        dim: '#8B97AB',
+        faint: '#5B6678',
         track: '#00F0FF',
         'track-dim': '#00B8CC',
         accent: '#A200FF',
+        // Semantic palette
+        info: '#5B9DFF',
+        teal: '#2DD4BF',
+        success: '#34D399',
+        warning: '#FBBF24',
+        danger: '#F87171',
+        critical: '#EF4444',
         risk: {
-          low: '#10B981',
-          med: '#F59E0B',
-          high: '#EF4444',
+          low: '#34D399',
+          med: '#FBBF24',
+          high: '#F87171',
         },
       },
       fontFamily: {
@@ -27,9 +36,10 @@ export default {
         display: ['"Space Grotesk"', '"Plus Jakarta Sans"', 'ui-sans-serif', 'sans-serif'],
       },
       boxShadow: {
-        panel: '0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 240, 255, 0.15)',
-        glow: '0 0 25px -5px rgba(0, 240, 255, 0.3)',
-        'accent-glow': '0 0 25px -5px rgba(162, 0, 255, 0.4)',
+        // Soft neutral elevation — no cyan ring.
+        panel: '0 12px 32px -16px rgba(0, 0, 0, 0.7)',
+        glow: '0 0 22px -8px rgba(0, 240, 255, 0.25)',
+        'accent-glow': '0 0 22px -8px rgba(162, 0, 255, 0.32)',
       },
       borderRadius: {
         xl: '0.75rem',
