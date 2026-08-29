@@ -8,7 +8,6 @@ const NAV_ITEMS = [
   { to: '/orbit-view', label: '3D Orbit' },
   { to: '/objects', label: 'Catalog' },
   { to: '/alerts', label: 'Alerts' },
-  { to: '/about', label: 'Reference' },
 ];
 
 export default function Navbar() {
