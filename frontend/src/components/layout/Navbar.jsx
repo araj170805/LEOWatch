@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, user } = useAuth();
   const [now, setNow] = useState(new Date());
   const [search, setSearch] = useState('');
 
@@ -51,7 +51,7 @@ export default function Navbar() {
           </div>
           <div className="hidden sm:flex flex-col leading-tight">
             <span className="font-bold text-base tracking-[0.15em] uppercase text-white group-hover:text-[#00f0ff] transition-colors">
-              KAKSHA
+              LEO WATCH
             </span>
             <span className="font-mono text-[9px] text-[#00f0ff]/70 tracking-wider uppercase font-medium">
               Orbital Guardian SSA
@@ -96,12 +96,24 @@ export default function Navbar() {
           </div>
 
           {isAuthenticated ? (
-            <button
-              onClick={handleLogout}
-              className="text-xs font-semibold tracking-[0.15em] uppercase rounded-full px-4 py-2 transition-all duration-300 hover:scale-105 border border-[rgba(0,240,255,0.35)] text-[#00f0ff] bg-[rgba(0,240,255,0.06)]"
-            >
-              Logout
-            </button>
+            <>
+              {user && (
+                <div className="hidden md:flex flex-col items-end leading-tight mr-1">
+                  <span className="text-xs font-semibold text-white truncate max-w-[160px]">
+                    {user.name || user.email}
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-400 truncate max-w-[160px]">
+                    {user.phone || user.email}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="text-xs font-semibold tracking-[0.15em] uppercase rounded-full px-4 py-2 transition-all duration-300 hover:scale-105 border border-[rgba(0,240,255,0.35)] text-[#00f0ff] bg-[rgba(0,240,255,0.06)]"
+              >
+                Logout
+              </button>
+            </>
           ) : (
             <button
               onClick={() => navigate('/login')}

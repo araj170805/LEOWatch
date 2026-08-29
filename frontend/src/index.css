@@ -86,3 +86,22 @@ select:focus-visible,
   }
 }
 
+/* ── Cesium widget placement on the 3D orbital screen ──────────────────
+   The 2D/3D (scene-mode) toggle is Cesium's only enabled toolbar widget.
+   By default it sits top-right and collides with the floating alert panel.
+   Dock it bottom-centre where nothing else lives (timeline is disabled). */
+.cesium-viewer-toolbar {
+  top: auto !important;
+  right: auto !important;
+  bottom: clamp(12px, 2vh, 20px) !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+.cesium-viewer .cesium-viewer-toolbar .cesium-toolbar-button,
+.cesium-viewer .cesium-viewer-toolbar .cesium-sceneModePicker-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.6);
+}
+

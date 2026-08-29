@@ -139,7 +139,7 @@ export default function OrbitView() {
             <span>🛰️ Objects ({selectedIds.length})</span><span>›</span>
           </button>
         ) : (
-          <div className="w-72 max-h-[calc(100vh-6rem)] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
+          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
             <div className="flex items-center justify-between border-b border-[rgba(0,240,255,0.15)] pb-2">
               <div>
                 <p className="font-mono text-[10px] text-[#00f0ff] tracking-[0.2em] uppercase font-bold">ORBITAL SELECTION</p>
@@ -238,13 +238,13 @@ export default function OrbitView() {
       </div>
 
       {/* ── Right: Conjunction alerts (compact) ── */}
-      <div className="absolute top-16 right-4 z-20">
+      <div className="absolute top-4 right-4 z-20">
         {!isRightOpen ? (
           <button onClick={() => setIsRightOpen(true)} className="flex items-center gap-2 font-mono text-xs text-[#00f0ff] bg-[#0b1026]/90 border border-[rgba(0,240,255,0.3)] backdrop-blur-xl px-3.5 py-2 rounded-xl shadow-xl hover:bg-[rgba(0,240,255,0.15)] transition-all">
             <span>‹ ⚠️ Alerts ({sortedEvents.length})</span>
           </button>
         ) : (
-          <div className="w-72 max-h-[calc(100vh-6rem)] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
+          <div className="w-64 lg:w-72 max-w-[calc(100vw-2rem)] max-h-[72vh] overflow-y-auto border border-[rgba(0,240,255,0.25)] bg-[#0b1026]/92 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl space-y-2.5">
             <div className="flex items-center justify-between border-b border-[rgba(0,240,255,0.15)] pb-2">
               <div>
                 <p className="font-mono text-[10px] text-[#00f0ff] tracking-[0.2em] uppercase font-bold">CONJUNCTION ALERTS</p>
@@ -282,16 +282,40 @@ export default function OrbitView() {
             </div>
 
             {selectedEvent && (
-              <div className="border-t border-[rgba(0,240,255,0.15)] pt-2">
-                <p className="font-mono text-[10px] text-[#00f0ff] tracking-[0.15em] uppercase font-bold mb-1.5">TELEMETRY</p>
-                <dl className="text-[11px] font-mono space-y-1">
-                  <div className="flex justify-between"><dt className="text-slate-400">A</dt><dd className="text-white truncate max-w-[180px]">{selectedEvent.object_a?.name}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-400">B</dt><dd className="text-white truncate max-w-[180px]">{selectedEvent.object_b?.name}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-400">TCA</dt><dd className="text-white">{formatDateTime(selectedEvent.tca)} · T-{countdownFrom(selectedEvent.tca)}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-400">Min sep</dt><dd className="font-bold text-[#00f0ff]">{Number(selectedEvent.minimum_distance_km).toFixed(2)} km</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-400">Rel vel</dt><dd className="text-slate-200">{selectedEvent.relative_velocity_km_s != null ? `${Number(selectedEvent.relative_velocity_km_s).toFixed(1)} km/s` : '—'}</dd></div>
-                  <div className="flex justify-between items-center"><dt className="text-slate-400">Risk</dt><dd><span className={`border rounded px-1.5 py-0.5 text-[10px] ${RISK_STYLES[selectedEvent.risk] || ''}`}>{selectedEvent.risk_score ?? '—'} · {selectedEvent.risk}</span></dd></div>
-                </dl>
+              <div className={`rounded-xl border p-2.5 ${RISK_STYLES[selectedEvent.risk] || 'border-[rgba(0,240,255,0.2)]'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] tracking-[0.15em] uppercase font-bold">⚠ CONJUNCTION ALERT</span>
+                  <span className="font-mono text-[10px] font-bold">
+                    {selectedEvent.risk_score ?? '—'} · {selectedEvent.risk} RISK
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2.5 text-white">
+                  <div>
+                    <p className="font-mono text-[9px] text-slate-400 uppercase">Object A</p>
+                    <p className="text-[11px] font-semibold truncate">{selectedEvent.object_a?.name}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[9px] text-slate-400 uppercase">Object B</p>
+                    <p className="text-[11px] font-semibold truncate">{selectedEvent.object_b?.name}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[9px] text-slate-400 uppercase">TCA (UTC)</p>
+                    <p className="text-[11px] font-mono">{formatDateTime(selectedEvent.tca)}</p>
+                    <p className="text-[10px] font-mono text-[#00f0ff]">T-{countdownFrom(selectedEvent.tca)}</p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[9px] text-slate-400 uppercase">Miss Distance</p>
+                    <p className="text-[11px] font-mono font-bold text-[#00f0ff]">
+                      {Number(selectedEvent.minimum_distance_km).toFixed(2)} km
+                    </p>
+                    {selectedEvent.relative_velocity_km_s != null && (
+                      <p className="text-[10px] font-mono text-slate-300">
+                        {Number(selectedEvent.relative_velocity_km_s).toFixed(1)} km/s rel.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -9,7 +9,7 @@ export default function PublicNavbar() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="h-2 w-2 rounded-full bg-track animate-pulse_dot" />
-          <span className="font-display text-base font-semibold tracking-wide text-primary">KAKSHA</span>
+          <span className="font-display text-base font-semibold tracking-wide text-primary">LEO WATCH</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 font-mono text-xs text-dim">

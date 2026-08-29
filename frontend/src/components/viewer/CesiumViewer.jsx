@@ -288,7 +288,7 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="absolute inset-0" />
-      <div className="absolute bottom-6 left-4 z-20 flex items-center gap-2 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-1.5 shadow-xl">
+      <div className="absolute bottom-14 left-4 z-20 flex items-center gap-2 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-1.5 shadow-xl">
         <span className="font-mono text-[10px] text-[#00f0ff] uppercase tracking-wider font-bold">EARTH VIEW:</span>
         <select
           value={mapStyle}

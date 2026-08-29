@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence, useDragControls, useMotionValue } from 'framer-motion';
 import { apiPost } from '../../lib/api.js';
 import { formatDateTime } from '../../utils/formatTime.js';
 import { useMission } from '../../context/MissionContext.jsx';
@@ -22,12 +22,54 @@ const SUGGESTED = [
   'What does minimum separation mean?',
 ];
 
+const POS_KEY = 'leowatch_copilot_pos';
+const PANEL_W = 360;
+
 export default function AssistantPanel() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const { selectedEvent } = useMission();
+
+  // Draggable floating position. Anchored bottom-right; x/y are negative
+  // offsets (left / up). Kept inside the viewport and remembered for the session.
+  const dragControls = useDragControls();
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const [constraints, setConstraints] = useState({ left: -400, top: -400, right: 0, bottom: 0 });
+
+  useEffect(() => {
+    function recalc() {
+      const maxLeft = -(Math.max(0, window.innerWidth - PANEL_W - 24));
+      const maxUp = -(Math.max(0, window.innerHeight - 140));
+      setConstraints({ left: maxLeft, top: maxUp, right: 0, bottom: 0 });
+      // clamp current position back into range on resize
+      if (x.get() < maxLeft) x.set(maxLeft);
+      if (y.get() < maxUp) y.set(maxUp);
+    }
+    recalc();
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(POS_KEY) || 'null');
+      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+        x.set(saved.x);
+        y.set(saved.y);
+      }
+    } catch {
+      /* ignore */
+    }
+    window.addEventListener('resize', recalc);
+    return () => window.removeEventListener('resize', recalc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function persistPos() {
+    try {
+      sessionStorage.setItem(POS_KEY, JSON.stringify({ x: x.get(), y: y.get() }));
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function send(question) {
     if (!question.trim() || sending) return;
@@ -51,7 +93,17 @@ export default function AssistantPanel() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)]">
+    <motion.div
+      drag
+      dragControls={dragControls}
+      dragListener={false}
+      dragMomentum={false}
+      dragElastic={0.04}
+      dragConstraints={constraints}
+      onDragEnd={persistPos}
+      style={{ x, y }}
+      className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)]"
+    >
       <AnimatePresence>
         {open && (
           <motion.div
@@ -61,8 +113,12 @@ export default function AssistantPanel() {
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="border border-line bg-panel/90 backdrop-blur-2xl rounded-2xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-panel/50">
+            {/* Header (drag handle) */}
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              style={{ touchAction: 'none' }}
+              className="flex items-center justify-between px-4 py-3 border-b border-line bg-panel/50 cursor-grab active:cursor-grabbing select-none"
+            >
               <div className="flex items-center gap-2.5">
                 <div className="h-6 w-6 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
                   <span className="h-2 w-2 rounded-full bg-indigo-400 animate-pulse_dot" />
@@ -72,11 +128,12 @@ export default function AssistantPanel() {
                     AI Orbital Copilot
                   </span>
                   <span className="font-mono text-[9px] text-faint">
-                    Grounded Telemetry Assistant
+                    Grounded Telemetry Assistant · drag to move
                   </span>
                 </div>
               </div>
               <button
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => setOpen(false)}
                 className="h-6 w-6 rounded-lg border border-line flex items-center justify-center text-dim hover:text-primary hover:bg-white/5 transition-colors"
               >
@@ -164,14 +221,15 @@ export default function AssistantPanel() {
         <motion.button
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
+          onPointerDown={(e) => dragControls.start(e)}
           onClick={() => setOpen(true)}
-          className="border border-line bg-panel/90 backdrop-blur-xl rounded-2xl text-xs font-semibold text-primary px-4 py-3 shadow-glow flex items-center gap-2.5 hover:border-indigo-500/40 transition-all cursor-pointer"
+          style={{ touchAction: 'none' }}
+          className="ml-auto flex border border-line bg-panel/90 backdrop-blur-xl rounded-2xl text-xs font-semibold text-primary px-4 py-3 shadow-glow items-center gap-2.5 hover:border-indigo-500/40 transition-all cursor-pointer"
         >
           <span className="h-2 w-2 rounded-full bg-indigo-400 animate-pulse_dot" />
           <span>AI Copilot</span>
         </motion.button>
       )}
-    </div>
+    </motion.div>
   );
 }
-
