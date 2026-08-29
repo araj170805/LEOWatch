@@ -23,21 +23,27 @@ from app.routers import auth, chat, forecast, history
 
 
 def _prewarm_tle_cache() -> None:
-    """Warm the TLE cache for the seed catalog in the background so the first
-    /catalog or /screening request isn't slow (and the circuit breaker trips
-    quickly if CelesTrak is unreachable)."""
+    """Warm the caches in the background on startup so the first /catalog and
+    /screening requests are fast and populated even on a fresh (Render) container."""
     from concurrent.futures import ThreadPoolExecutor
 
     from app.orbital import tle as tle_mod
 
-    def _one(nid: int) -> None:
+    def _one_tle(nid: int) -> None:
         try:
             tle_mod.fetch_tle(nid, timeout=6)
         except Exception:  # noqa: BLE001
             pass
 
-    with ThreadPoolExecutor(max_workers=len(CATALOG)) as pool:
-        list(pool.map(_one, [c["norad_id"] for c in CATALOG]))
+    def _one_group(group: str) -> None:
+        try:
+            tle_mod.fetch_group(group, timeout=20)
+        except Exception:  # noqa: BLE001
+            pass
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(_one_tle, [c["norad_id"] for c in CATALOG]))
+        list(pool.map(_one_group, DEFAULT_GROUPS))
 
 
 @asynccontextmanager
@@ -269,6 +275,31 @@ def catalog(
             if row and row["norad_id"] not in by_id:
                 by_id[row["norad_id"]] = row
     rows = list(by_id.values())
+
+    # Safety net: never return a completely empty catalog. If every GROUP
+    # fetch failed and no snapshot exists, fall back to the featured seed set.
+    if not rows:
+        for entry in CATALOG:
+            try:
+                t = tle_mod.fetch_tle(entry["norad_id"], timeout=5)
+            except ValueError:
+                continue
+            rows.append({
+                "norad_id": entry["norad_id"],
+                "name": t.get("name", entry["name"]),
+                "type": classify_object(t.get("name", entry["name"])),
+                "group": "featured",
+                "altitude_km": None,
+                "apogee_km": None,
+                "perigee_km": None,
+                "inclination_deg": None,
+                "eccentricity": None,
+                "period_min": None,
+                "tle_epoch": t.get("epoch"),
+                "tle_age_days": t.get("age_days"),
+                "freshness": t.get("freshness"),
+                "intl_designator": None,
+            })
 
     counts = {"PAYLOAD": 0, "DEBRIS": 0, "ROCKET BODY": 0, "UNKNOWN": 0}
     for r in rows:

@@ -226,14 +226,29 @@ def fetch_tle(norad_id: int, timeout: int = DEFAULT_HTTP_TIMEOUT) -> dict:
 _GROUP_CACHE_DIR = CACHE_PATH.parent / "groups"
 _GROUP_TTL_SECONDS = 6 * 3600
 _group_mem: dict[str, tuple[float, list[dict]]] = {}
+# Last successful (non-empty) result per group. Used as a fallback whenever a
+# refresh fails so a single CelesTrak blip can never zero out the catalog.
+_group_last_good: dict[str, list[dict]] = {}
+
+
+def _read_group_disk(group: str) -> list[dict] | None:
+    disk_file = _GROUP_CACHE_DIR / f"{group}.json"
+    if not disk_file.is_file():
+        return None
+    try:
+        data = json.loads(disk_file.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) and data else None
+    except (OSError, ValueError):
+        return None
 
 
 def fetch_group(group: str, timeout: int = 12) -> list[dict]:
     """Fetch a whole CelesTrak GROUP as GP JSON (many objects in one request).
 
-    Layered like fetch_tle: memory cache -> live CelesTrak -> disk cache.
-    Returns the raw GP records (OBJECT_NAME, NORAD_CAT_ID, MEAN_MOTION, ...).
-    Never raises — returns [] if nothing is available.
+    Layered: fresh memory cache -> live CelesTrak -> disk cache -> last-good.
+    A failed refresh NEVER overwrites a good result with an empty list, and the
+    most recent good snapshot is always served while a refresh is failing.
+    Never raises.
     """
     group = group.strip().lower()
     if not group:
@@ -241,46 +256,46 @@ def fetch_group(group: str, timeout: int = 12) -> list[dict]:
 
     now = time.monotonic()
     mem = _group_mem.get(group)
-    if mem and now - mem[0] < _GROUP_TTL_SECONDS:
+    if mem and mem[1] and now - mem[0] < _GROUP_TTL_SECONDS:
         return mem[1]
 
-    disk_file = _GROUP_CACHE_DIR / f"{group}.json"
-
     records: list[dict] | None = None
-    if celestrak_reachable():
-        any_error = False
-        for base_url in CELESTRAK_URLS:
-            try:
-                resp = requests.get(
-                    base_url,
-                    params={"GROUP": group, "FORMAT": "JSON"},
-                    timeout=timeout,
-                    verify=False,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if isinstance(data, list) and data:
-                        records = data
-                        break
-            except (requests.RequestException, ValueError):
-                any_error = True
-                continue
-        if records is None and any_error:
-            _trip_circuit()
+    for base_url in CELESTRAK_URLS:
+        try:
+            resp = requests.get(
+                base_url,
+                params={"GROUP": group, "FORMAT": "JSON"},
+                timeout=timeout,
+                verify=False,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and data:
+                    records = data
+                    break
+        except (requests.RequestException, ValueError):
+            continue
 
-    if records is not None:
+    if records:
         try:
             _GROUP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            disk_file.write_text(json.dumps(records), encoding="utf-8")
+            (_GROUP_CACHE_DIR / f"{group}.json").write_text(json.dumps(records), encoding="utf-8")
         except OSError:
             pass
-    elif disk_file.is_file():
-        try:
-            records = json.loads(disk_file.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            records = None
+        _group_last_good[group] = records
+        _group_mem[group] = (now, records)
+        return records
 
-    records = records or []
-    _group_mem[group] = (now, records)
-    return records
+    # Refresh failed — degrade gracefully, oldest-acceptable first.
+    fallback = (
+        (mem[1] if mem and mem[1] else None)
+        or _group_last_good.get(group)
+        or _read_group_disk(group)
+        or []
+    )
+    if fallback:
+        _group_last_good.setdefault(group, fallback)
+    # Store with a stale timestamp so the next call retries the network.
+    _group_mem[group] = (0.0, fallback)
+    return fallback
