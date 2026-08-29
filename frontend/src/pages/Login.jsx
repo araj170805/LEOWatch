@@ -24,7 +24,7 @@ export default function Login() {
         <motion.div variants={container} initial="hidden" animate="show" className="lg:col-span-3 w-full max-w-sm mx-auto lg:mx-0">
           <motion.div variants={item} className="mb-6 text-center lg:text-left">
             <p className="font-mono text-[11px] tracking-[0.2em] text-track mb-1">ACCESS CONSOLE</p>
-            <h1 className="font-display text-2xl font-semibold text-primary tracking-tight">Sign in to ORBITWATCH</h1>
+            <h1 className="font-display text-2xl font-semibold text-primary tracking-tight">Sign in to LEO WATCH</h1>
           </motion.div>
 
           <motion.form

@@ -13,11 +13,11 @@ export default function PublicNavbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 font-mono text-xs text-dim">
-          <a href="#features" className="hover:text-primary transition-colors">
+          <a href="#features" className="hover:text-primary transition-colors whitespace-nowrap">
             Features
           </a>
-          <a href="#methodology" className="hover:text-primary transition-colors">
-            Methodology
+          <a href="#pipeline" className="hover:text-primary transition-colors whitespace-nowrap">
+            Orbital Pipeline
           </a>
         </nav>
 

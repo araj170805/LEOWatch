@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PublicNavbar from '../components/layout/PublicNavbar.jsx';
 import SplineScene from '../components/common/SplineScene.jsx';
+import OrbitalPipeline from '../components/OrbitalPipeline.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { container, item } from '../utils/motion.js';
 
@@ -229,6 +230,27 @@ export default function Landing() {
         </motion.div>
       </section>
 
+
+      {/* Orbital Pipeline Section */}
+      <section id="pipeline" className="scroll-mt-24 border-t border-[rgba(0,240,255,0.15)] bg-[rgba(5,8,22,0.35)]">
+        <div className="max-w-6xl mx-auto w-full px-4 md:px-8 py-20">
+          <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.15 }}>
+            <motion.p variants={item} className="font-mono text-xs tracking-[0.2em] text-[#00f0ff] mb-2 text-center uppercase">
+              Orbital Pipeline
+            </motion.p>
+            <motion.h2 variants={item} className="text-3xl font-bold text-white text-center mb-3 tracking-tight">
+              From raw orbital data to AI risk insight
+            </motion.h2>
+            <motion.p variants={item} className="text-sm text-slate-400 text-center max-w-2xl mx-auto mb-14">
+              Every LEO Watch analysis runs through the same deterministic pipeline — public element sets in,
+              conjunction geometry and plain-language risk out.
+            </motion.p>
+            <motion.div variants={item}>
+              <OrbitalPipeline />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
 
       {/* AI Section — VYOMNETRA Branding */}
       <section id="ai-section" className="border-t border-[rgba(0,240,255,0.15)] bg-gradient-to-b from-[rgba(0,240,255,0.06)] to-transparent">

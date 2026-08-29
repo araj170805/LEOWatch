@@ -118,13 +118,13 @@ export default function OrbitView() {
         )}
 
         {loading && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 font-mono text-xs text-[#00f0ff] border border-[rgba(0,240,255,0.4)] bg-[#050816]/90 backdrop-blur-md px-4 py-2 rounded-xl animate-pulse z-20 shadow-lg">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 font-mono text-xs text-[#00f0ff] border border-[rgba(0,240,255,0.4)] bg-[#050816]/90 backdrop-blur-md px-4 py-2 rounded-xl animate-pulse z-20 shadow-lg">
             ⚡ PROPAGATING ORBITAL TRAJECTORIES…
           </div>
         )}
 
         {error && !loading && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-md text-center font-mono text-xs text-red-300 border border-red-500/40 bg-[#050816]/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 max-w-md text-center font-mono text-xs text-red-300 border border-red-500/40 bg-[#050816]/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg">
             <p className="font-bold text-red-400 mb-1">SCREENING FAILED</p>
             <p className="text-slate-300">{String(error?.message || error)}</p>
             <button onClick={handleRun} className="mt-2 border border-[rgba(0,240,255,0.4)] text-[#00f0ff] rounded-lg px-3 py-1 hover:bg-[rgba(0,240,255,0.1)] transition-colors">Retry</button>
