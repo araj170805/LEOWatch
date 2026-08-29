@@ -78,8 +78,7 @@ def _template_answer(event, question):
         note = (f" Note the refined analysis adjusted the distance from "
                 f"{_fmt(coarse_d)} km to {_fmt(refined_d)} km.")
     answer = summary + (" " + extra).rstrip() + note
-    return (answer.rstrip() + " (Answered from recorded analysis data without "
-            "the AI service.)")
+    return answer.rstrip()
 
 
 def explain(event, question, context_docs=None):
