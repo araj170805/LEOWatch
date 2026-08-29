@@ -35,8 +35,18 @@ export default function CursorGrid({
     const activeCells = new Map();
     const pulses = [];
 
-    let mouseX = -9999;
-    let mouseY = -9999;
+    // Smoothed cursor position that the grid actually reacts to, plus the raw
+    // target it eases toward. A small deadzone + per-frame lerp stops tiny or
+    // accidental pointer movements from snapping the highlight around.
+    const OFFSCREEN = -9999;
+    const MOVE_DEADZONE = 6; // px — ignore pointer jitter below this
+    const SMOOTHING = 0.14; // 0..1 per frame — lower = smoother/heavier
+    let mouseX = OFFSCREEN;
+    let mouseY = OFFSCREEN;
+    let targetX = OFFSCREEN;
+    let targetY = OFFSCREEN;
+    let lastRawX = OFFSCREEN;
+    let lastRawY = OFFSCREEN;
 
     function resize() {
       const parent = canvas.parentElement;
@@ -56,13 +66,27 @@ export default function CursorGrid({
 
     function onMouseMove(e) {
       const rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
+      const rx = e.clientX - rect.left;
+      const ry = e.clientY - rect.top;
+      // Deadzone: drop sub-threshold jitter so a resting/twitching pointer
+      // doesn't keep re-triggering the grid.
+      if (
+        lastRawX !== OFFSCREEN &&
+        Math.hypot(rx - lastRawX, ry - lastRawY) < MOVE_DEADZONE
+      ) {
+        return;
+      }
+      lastRawX = rx;
+      lastRawY = ry;
+      targetX = rx;
+      targetY = ry;
     }
 
     function onMouseLeave() {
-      mouseX = -9999;
-      mouseY = -9999;
+      targetX = OFFSCREEN;
+      targetY = OFFSCREEN;
+      lastRawX = OFFSCREEN;
+      lastRawY = OFFSCREEN;
     }
 
     function onClick(e) {
@@ -82,6 +106,19 @@ export default function CursorGrid({
     function render(now) {
       animId = requestAnimationFrame(render);
       ctx.clearRect(0, 0, width, height);
+
+      // Ease the reactive position toward the raw target so movement glides
+      // instead of jumping. Snap on enter/leave to avoid a sweep from offscreen.
+      if (targetX === OFFSCREEN) {
+        mouseX = OFFSCREEN;
+        mouseY = OFFSCREEN;
+      } else if (mouseX === OFFSCREEN) {
+        mouseX = targetX;
+        mouseY = targetY;
+      } else {
+        mouseX += (targetX - mouseX) * SMOOTHING;
+        mouseY += (targetY - mouseY) * SMOOTHING;
+      }
 
       const cols = Math.ceil(width / cellSize) + 1;
       const rows = Math.ceil(height / cellSize) + 1;
