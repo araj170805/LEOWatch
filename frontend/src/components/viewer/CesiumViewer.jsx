@@ -354,7 +354,7 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
       {/* ── Time scrubber: drag to move the simulation clock and watch the
              objects march along their propagated orbits. ── */}
       {clk.hasSpan && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-[min(560px,calc(100vw-2rem))] flex flex-col gap-1.5 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-2 shadow-xl">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 w-[min(560px,calc(100vw-2rem))] flex flex-col gap-1.5 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-2 shadow-xl">
           <div className="flex items-center gap-2">
             <button
               onClick={togglePlay}
