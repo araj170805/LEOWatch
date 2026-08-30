@@ -159,4 +159,35 @@ def screening(body: ScreeningRequest):
         for j in range(i + 1, len(ids)):
             events.append(_conjunction_event(ids[i], ids[j], tles, trajs))
     events.sort(key=lambda e: e["minimum_distance_km"])
-    return {"events": events, "count": len(events)}
+
+    # Flag pairs whose predicted separation drops below the threshold at a TCA
+    # falling inside the requested look-ahead window.
+    within_hours = body.within_hours if body.within_hours is not None else body.horizon_hours
+    for e in events:
+        e["flagged"] = (
+            e["minimum_distance_km"] < body.threshold_km
+            and e["time_to_tca_hours"] <= within_hours
+        )
+    flagged = [e for e in events if e["flagged"]]
+
+    payload = {
+        "events": events,
+        "count": len(events),
+        "threshold_km": body.threshold_km,
+        "within_hours": within_hours,
+        "flagged_count": len(flagged),
+        "flagged_pairs": [
+            {
+                "object_a": e["object_a"],
+                "object_b": e["object_b"],
+                "tca": e["tca"],
+                "time_to_tca_hours": e["time_to_tca_hours"],
+                "minimum_distance_km": e["minimum_distance_km"],
+                "risk": e["risk"],
+            }
+            for e in flagged
+        ],
+    }
+    if errors:
+        payload["errors"] = errors
+    return payload

@@ -34,7 +34,14 @@ class ForecastRequest(BaseModel):
 
 
 ConjunctionRequest = ForecastRequest
-ScreeningRequest = ForecastRequest
+
+
+class ScreeningRequest(ForecastRequest):
+    # Flag any pair whose predicted separation drops below this many km...
+    threshold_km: float = Field(default=5.0, gt=0, le=1000)
+    # ...at a TCA that falls within this many hours from now (defaults to the
+    # full propagation horizon when omitted).
+    within_hours: float | None = Field(default=None, gt=0, le=168)
 
 
 class ChatIn(BaseModel):

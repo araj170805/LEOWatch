@@ -46,9 +46,15 @@ Positions/velocities ECI (TEME), km and km/s.
   "risk": "LOW"
 }
 ```
-- POST /screening {objects:[a,b,c,d], horizon_hours, step_minutes} ->
-  {"events": [<same shape as conjunction result>], "count": n}
+- POST /screening {objects:[a,b,c,d], horizon_hours, step_minutes,
+  threshold_km=5.0, within_hours=null} ->
+  {"events": [<conjunction result + "flagged": bool>], "count": n,
+   "threshold_km": 5.0, "within_hours": 24,
+   "flagged_count": k, "flagged_pairs": [{object_a, object_b, tca,
+   time_to_tca_hours, minimum_distance_km, risk}]}
   Unique pairs only (i<j), sorted ascending by minimum_distance_km.
+  A pair is flagged when minimum_distance_km < threshold_km and its TCA
+  falls within within_hours from now (within_hours defaults to horizon_hours).
 
 ## Risk classification (orbital/risk.py) — thresholds on minimum_distance_km
 - < 1.0 km   -> CRITICAL
