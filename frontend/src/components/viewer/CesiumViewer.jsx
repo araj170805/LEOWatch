@@ -23,6 +23,22 @@ function riskColor(risk) {
   return RISK_COLORS[risk] || Cesium.Color.WHITE;
 }
 
+const SPEED_OPTIONS = [
+  { label: '1×', value: 1 },
+  { label: '60×', value: 60 },
+  { label: '300×', value: 300 },
+  { label: '1800×', value: 1800 },
+];
+
+function fmtClock(jd) {
+  if (!jd) return '—';
+  try {
+    return Cesium.JulianDate.toIso8601(jd, 0).replace('T', ' ').replace('Z', ' UTC');
+  } catch {
+    return '—';
+  }
+}
+
 export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -30,6 +46,9 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState('');
   const [mapStyle, setMapStyle] = useState('satellite');
+  // Live mirror of the Cesium clock so the scrubber UI can drive / follow time.
+  const [clk, setClk] = useState({ fraction: 0, current: null, animating: false, multiplier: 300, hasSpan: false });
+  const scrubbingRef = useRef(false);
 
   const BASEMAPS = {
     satellite: () =>
@@ -94,6 +113,23 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
       viewer.clock.shouldAnimate = true;
       viewer.clock.multiplier = 60;
       viewerRef.current = viewer;
+
+      // Mirror the clock into React state every tick so the time scrubber
+      // stays in sync while the simulation plays.
+      viewer.clock.onTick.addEventListener((clock) => {
+        if (scrubbingRef.current) return;
+        const span = Cesium.JulianDate.secondsDifference(clock.stopTime, clock.startTime);
+        const done = span > 0
+          ? Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime) / span
+          : 0;
+        setClk({
+          fraction: Math.min(1, Math.max(0, done)),
+          current: clock.currentTime.clone(),
+          animating: clock.shouldAnimate,
+          multiplier: clock.multiplier,
+          hasSpan: span > 0,
+        });
+      });
     } catch (err) {
       console.error('Cesium viewer init failed:', err);
       setFailReason(err?.message || String(err));
@@ -261,6 +297,32 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
     };
   }, [selectedEvent, failed]);
 
+  function seekToFraction(frac) {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const clock = viewer.clock;
+    const span = Cesium.JulianDate.secondsDifference(clock.stopTime, clock.startTime);
+    if (span <= 0) return;
+    const t = Cesium.JulianDate.addSeconds(clock.startTime, span * frac, new Cesium.JulianDate());
+    clock.currentTime = t;
+    setClk((c) => ({ ...c, fraction: frac, current: t.clone() }));
+    viewer.scene.requestRender?.();
+  }
+
+  function togglePlay() {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    viewer.clock.shouldAnimate = !viewer.clock.shouldAnimate;
+    setClk((c) => ({ ...c, animating: viewer.clock.shouldAnimate }));
+  }
+
+  function setSpeed(mult) {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    viewer.clock.multiplier = mult;
+    setClk((c) => ({ ...c, multiplier: mult }));
+  }
+
   if (failed) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-void">
@@ -288,6 +350,51 @@ export default function CesiumViewer({ objects = [], selectedEvent, focusKey = 0
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="absolute inset-0" />
+
+      {/* ── Time scrubber: drag to move the simulation clock and watch the
+             objects march along their propagated orbits. ── */}
+      {clk.hasSpan && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-[min(560px,calc(100vw-2rem))] flex flex-col gap-1.5 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-2 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePlay}
+              className="h-7 w-7 shrink-0 rounded-lg border border-[rgba(0,240,255,0.4)] text-[#00f0ff] hover:bg-[rgba(0,240,255,0.12)] flex items-center justify-center text-xs"
+              title={clk.animating ? 'Pause' : 'Play'}
+            >
+              {clk.animating ? '❚❚' : '▶'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              value={Math.round(clk.fraction * 1000)}
+              onPointerDown={() => { scrubbingRef.current = true; }}
+              onPointerUp={() => { scrubbingRef.current = false; }}
+              onChange={(e) => seekToFraction(Number(e.target.value) / 1000)}
+              className="flex-1 accent-[#00f0ff] cursor-pointer"
+            />
+            <div className="flex shrink-0 rounded-lg border border-[rgba(148,163,184,0.16)] overflow-hidden">
+              {SPEED_OPTIONS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => setSpeed(s.value)}
+                  className={[
+                    'px-1.5 py-0.5 text-[10px] font-mono transition-colors',
+                    clk.multiplier === s.value ? 'bg-[#00f0ff] text-[#050816] font-bold' : 'text-slate-300 hover:bg-[rgba(0,240,255,0.1)]',
+                  ].join(' ')}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between font-mono text-[10px] text-[#00f0ff]">
+            <span className="uppercase tracking-wider text-slate-400">Sim time</span>
+            <span>{fmtClock(clk.current)}</span>
+          </div>
+        </div>
+      )}
+
       <div className="absolute bottom-14 left-4 z-20 flex items-center gap-2 border border-[rgba(0,240,255,0.3)] bg-[#0b1026]/90 backdrop-blur-xl rounded-xl px-3 py-1.5 shadow-xl">
         <span className="font-mono text-[10px] text-[#00f0ff] uppercase tracking-wider font-bold">EARTH VIEW:</span>
         <select
