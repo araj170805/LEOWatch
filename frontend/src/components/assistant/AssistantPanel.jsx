@@ -80,6 +80,7 @@ export default function AssistantPanel() {
       const data = await apiPost('/chat', {
         question,
         event: selectedEvent ?? null,
+        history: messages.slice(-6).map((m) => ({ role: m.role, text: m.text })),
       });
       setMessages((m) => [...m, { role: 'assistant', text: data.answer }]);
     } catch {

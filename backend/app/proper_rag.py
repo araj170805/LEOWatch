@@ -71,14 +71,34 @@ _STOPWORDS = {
 }
 
 SYSTEM_PROMPT = (
-    "You are Orbital Guardian's AI Space Situational Awareness and Conjunction Analysis Assistant. "
-    "Your role is to explain orbital mechanics concepts and interpret pre-computed conjunction events accurately.\n\n"
+    "You are Orbital Guardian's AI Space Situational Awareness assistant. "
+    "Answer the user's actual question directly and let the question decide the "
+    "shape of the response.\n\n"
     "CRITICAL RULES:\n"
-    "1. NEVER calculate, fabricate, or extrapolate orbital numbers (TCA, miss distances, positions, velocities, risk levels).\n"
-    "2. ONLY reference numbers explicitly provided in the CONJUNCTION DATA.\n"
-    "3. Use the provided REFERENCE KNOWLEDGE to explain principles (such as SGP4 limitations, CDM parameters, screening volumes, and collision probabilities).\n"
-    "4. If specific data is missing or not provided, explicitly state that it is unavailable in current telemetry.\n"
-    "5. Keep responses concise, professional, and directly actionable for satellite flight operations."
+    "1. First identify the user's intent, then answer only that. Do NOT force a "
+    "conjunction report (miss distance / relative velocity / risk score / TCA) "
+    "into every reply. Include those quantities only when the question is "
+    "specifically about the conjunction, the risk, timing, or the encounter "
+    "geometry.\n"
+    "2. For questions about an object's identity, mission, purpose, history, or "
+    "importance, focus on that and use the REFERENCE KNOWLEDGE; do not append "
+    "conjunction risk data unless asked.\n"
+    "3. For conceptual questions (SGP4, orbital propagation, NORAD ID, space "
+    "debris, Kessler Syndrome, inclination, etc.) give a clear educational "
+    "explanation grounded in the REFERENCE KNOWLEDGE. Do not return a "
+    "conjunction report.\n"
+    "4. NEVER calculate, fabricate, or extrapolate orbital numbers. Only "
+    "reference values explicitly present in SELECTED CONTEXT. If a value is "
+    "unavailable, say: \"I don't have reliable data for that information.\" Do "
+    "not invent it.\n"
+    "5. SELECTED CONTEXT describes what the user currently has selected in the "
+    "app. Use it to resolve references like \"this object\", \"this "
+    "conjunction\", \"it\", or \"this\" only when the question actually refers "
+    "to it; otherwise ignore it.\n"
+    "6. Match depth to the question: simple question -> short answer; technical "
+    "question -> more detail; complex question -> step-by-step. Use headings or "
+    "bullets only when they aid readability. Do not turn every answer into a "
+    "large report. Be concise, conversational, and technically accurate."
 )
 
 
@@ -459,7 +479,13 @@ class ProperRAGPipeline:
         except Exception:
             return [dict(c) for c in self.chunks[:max(1, int(k))]]
 
-    def explain(self, event: dict[str, Any] | None, question: str, k: int = 4) -> dict[str, Any]:
+    def explain(
+        self,
+        event: dict[str, Any] | None,
+        question: str,
+        k: int = 4,
+        history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         """Retrieve relevant context and generate a grounded response."""
         context_docs = self.retrieve(question, k=k)
         
@@ -478,13 +504,24 @@ class ProperRAGPipeline:
                 sources.append(doc["doc"])
 
         reference_knowledge = "\n\n".join(doc_snippets) if doc_snippets else "(No specific documentation matched)"
-        event_json = json.dumps(event, indent=2) if event else "(No live conjunction telemetry provided)"
+        event_json = json.dumps(event, indent=2) if event else "(nothing currently selected)"
+
+        convo = ""
+        for turn in (history or [])[-6:]:
+            role = turn.get("role", "user")
+            text = (turn.get("text") or turn.get("content") or "").strip()
+            if text:
+                convo += f"{role.upper()}: {text}\n"
+        convo_block = f"CONVERSATION SO FAR:\n{convo}\n" if convo else ""
 
         user_prompt = (
+            f"{convo_block}"
             f"USER QUESTION: {question}\n\n"
-            f"CONJUNCTION TELEMETRY DATA:\n{event_json}\n\n"
-            f"RETRIEVED DOMAIN KNOWLEDGE:\n{reference_knowledge}\n\n"
-            "Provide a clear, grounded explanation answering the user's question with citations from the retrieved knowledge."
+            f"SELECTED CONTEXT (the object/conjunction the user has selected in "
+            f"the app — use only if the question refers to it):\n{event_json}\n\n"
+            f"REFERENCE KNOWLEDGE:\n{reference_knowledge}\n\n"
+            "Answer the user's question directly. Determine intent first, then "
+            "include only the information that intent needs."
         )
 
         answer = None
@@ -536,7 +573,7 @@ class ProperRAGPipeline:
 
         # Deterministic Fallback Template
         if not answer:
-            answer = self._template_answer(event, question)
+            answer = self._template_answer(event, question, context_docs)
 
         return {
             "answer": answer,
@@ -544,14 +581,49 @@ class ProperRAGPipeline:
             "retrieved_chunks": context_docs,
         }
 
-    def _template_answer(self, event: dict[str, Any] | None, question: str) -> str:
-        """Deterministic orbital analysis fallback template."""
-        if not event:
-            return (
-                f"No specific conjunction event was provided. Question: \"{question}\". "
-                "You can query domain concepts such as TCA, Miss Distance, SGP4 propagation, "
-                "TLE accuracy, screening volumes, and collision probabilities."
-            )
+    @staticmethod
+    def _is_conjunction_question(question: str) -> bool:
+        """Heuristic: does the question actually ask about the encounter/risk?"""
+        q = (question or "").lower()
+        keywords = (
+            "conjunction", "collide", "collision", "miss distance", "separation",
+            "close approach", "closest approach", "tca", "time of closest",
+            "relative velocity", "risk", "risky", "danger", "dangerous",
+            "maneuver", "manoeuvre", "avoid", "probability of collision", "pc ",
+            "how close", "hit", "crash",
+        )
+        return any(kw in q for kw in keywords)
+
+    def _template_answer(
+        self,
+        event: dict[str, Any] | None,
+        question: str,
+        context_docs: list[dict[str, Any]] | None = None,
+    ) -> str:
+        """Deterministic fallback used only when no LLM answer is available.
+
+        Keeps the intent-aware contract: a conjunction summary is produced only
+        for conjunction-style questions; otherwise the best retrieved knowledge
+        snippet is surfaced instead of a fixed risk template.
+        """
+        wants_conjunction = self._is_conjunction_question(question)
+
+        if not event or not wants_conjunction:
+            for doc in context_docs or []:
+                text = (doc.get("text") or "").strip()
+                # Drop the leading "[Breadcrumb]" line added during chunking.
+                if text.startswith("["):
+                    text = text.split("\n", 1)[-1].strip()
+                if text:
+                    return text
+            if not event:
+                return (
+                    "I don't have reliable data for that yet. Ask about orbital "
+                    "concepts (SGP4, orbital propagation, NORAD ID, inclination, "
+                    "space debris, Kessler Syndrome) or select an object or "
+                    "conjunction and ask about it."
+                )
+            return "I don't have reliable data for that information."
 
         name_a = event.get("object_a", {}).get("name", "Object A")
         name_b = event.get("object_b", {}).get("name", "Object B")
@@ -613,6 +685,11 @@ def retrieve(query: str, k: int = 4) -> list[dict[str, Any]]:
     return rag_pipeline.retrieve(query, k=k)
 
 
-def explain(event: dict[str, Any] | None, question: str, k: int = 4) -> dict[str, Any]:
+def explain(
+    event: dict[str, Any] | None,
+    question: str,
+    k: int = 4,
+    history: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
     """Standalone explain function for external consumption."""
-    return rag_pipeline.explain(event, question, k=k)
+    return rag_pipeline.explain(event, question, k=k, history=history)

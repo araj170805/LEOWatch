@@ -16,6 +16,8 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     question: str
     event: dict | None = None
+    # Recent turns ([{role, text}, ...]) so follow-ups keep conversational context.
+    history: list[dict] | None = None
 
 
 class ChatResponse(BaseModel):
@@ -27,7 +29,7 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest):
     try:
-        result = rag_explain(body.event, body.question, k=4)
+        result = rag_explain(body.event, body.question, k=4, history=body.history)
         return ChatResponse(
             answer=result.get("answer", "AI explanation temporarily unavailable."),
             sources=result.get("sources", []),
