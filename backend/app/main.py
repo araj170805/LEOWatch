@@ -66,7 +66,7 @@ _LOCAL_ORIGINS = [
     "http://localhost:3000", "http://127.0.0.1:3000",
     "http://localhost:4173", "http://127.0.0.1:4173",
 ]
-if "*" in _explicit_origins:
+if "*" in _explicit_origins: 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
